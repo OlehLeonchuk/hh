@@ -91,3 +91,10 @@ func main() {
 	result := verifier.Verify(response, prover.Secret)
 	fmt.Println("Verification result:", result)
 }
+func Verify(proverResponse, secret, challenge *big.Int) bool {
+	commitment := sha256.Sum256(secret.Bytes())
+
+	xorResult := new(big.Int).Xor(proverResponse, new(big.Int).SetBytes(commitment[:]))
+
+	return xorResult.Cmp(challenge) == 0
+}
