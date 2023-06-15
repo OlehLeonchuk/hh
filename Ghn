@@ -1,0 +1,93 @@
+package main
+
+import (
+	"crypto/rand"
+	"crypto/sha256"
+	"fmt"
+	"math/big"
+)
+
+const bitSize = 256
+
+type Prover struct {
+	Secret *big.Int
+}
+
+type Verifier struct {
+	Challenge *big.Int
+}
+
+// Generate a random secret value for the prover
+func (p *Prover) GenerateSecret() error {
+	secret, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), bitSize))
+	if err != nil {
+		return err
+	}
+
+	p.Secret = secret
+	return nil
+}
+
+// Generate a random challenge for the verifier
+func (v *Verifier) GenerateChallenge() error {
+	challenge, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), bitSize))
+	if err != nil {
+		return err
+	}
+
+	v.Challenge = challenge
+	return nil
+}
+
+// Prover's response calculation
+func (p *Prover) CalculateResponse(challenge *big.Int) (*big.Int, error) {
+	// Compute the commitment value
+	commitment := sha256.Sum256(p.Secret.Bytes())
+
+	// Calculate the response by XORing the challenge with the secret value
+	response := new(big.Int).Xor(challenge, new(big.Int).SetBytes(commitment[:]))
+
+	return response, nil
+}
+
+// Verifier's verification
+func (v *Verifier) Verify(proverResponse, secret *big.Int) bool {
+	// Compute the commitment value
+	commitment := sha256.Sum256(secret.Bytes())
+
+	// Calculate the challenge by XORing the response with the commitment
+	challenge := new(big.Int).Xor(proverResponse, new(big.Int).SetBytes(commitment[:]))
+
+	// Check if the calculated challenge matches the verifier's challenge
+	return challenge.Cmp(v.Challenge) == 0
+}
+
+func main() {
+	prover := &Prover{}
+	verifier := &Verifier{}
+
+	// Generate a secret value for the prover
+	err := prover.GenerateSecret()
+	if err != nil {
+		fmt.Println("Error generating secret:", err)
+		return
+	}
+
+	// Generate a challenge for the verifier
+	err = verifier.GenerateChallenge()
+	if err != nil {
+		fmt.Println("Error generating challenge:", err)
+		return
+	}
+
+	// Prover calculates the response
+	response, err := prover.CalculateResponse(verifier.Challenge)
+	if err != nil {
+		fmt.Println("Error calculating response:", err)
+		return
+	}
+
+	// Verifier verifies the response
+	result := verifier.Verify(response, prover.Secret)
+	fmt.Println("Verification result:", result)
+}
